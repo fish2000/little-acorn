@@ -4,6 +4,7 @@
 *.so
 *.o
 *.DS_Store
+*.pyc
 
 Onigmo/CMakeLists.txt
 cf/CMakeLists.txt
