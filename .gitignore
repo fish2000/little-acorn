@@ -1,0 +1,13 @@
+/build/
+*.dylib
+*.a
+*.so
+*.o
+*.DS_Store
+
+Onigmo/CMakeLists.txt
+cf/CMakeLists.txt
+crash/CMakeLists.txt
+io/CMakeLists.txt
+regexp/CMakeLists.txt
+text/CMakeLists.txt

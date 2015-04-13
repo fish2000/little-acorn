@@ -24,7 +24,8 @@ SET(CMAKE_LIBRARY_PATH ${CMAKE_INCLUDE_PATH}
     /usr/local/include)
 
 # FIND_PACKAGE(Capnp REQUIRED)
-find_package(PkgConfig)
+find_package(Boost REQUIRED)
+find_package(PkgConfig REQUIRED)
 pkg_check_modules(CAPNP capnp)
 
 
@@ -50,22 +51,65 @@ INCLUDE_DIRECTORIES(
     ${PARENT_DIR}/Shared/include
     ${SUBPROJECT_SOURCE_DIR}/src)
 
-FILE(GLOB_RECURSE SUBPROJECT_SRCS
-    ${SUBPROJECT_SOURCE_DIR}/src/*.cpp)
-FILE(GLOB_RECURSE SUBPROJECT_HDRS
-    ${SUBPROJECT_SOURCE_DIR}/src/*.h)
+# FILE(GLOB_RECURSE SUBPROJECT_SRCS
+#     RELATIVE ${SUBPROJECT_SOURCE_DIR}
+#     "${SUBPROJECT_SOURCE_DIR}/*.*" )
+# FILE(GLOB_RECURSE SUBPROJECT_HDRS
+#     RELATIVE ${SUBPROJECT_SOURCE_DIR}
+#     "${SUBPROJECT_SOURCE_DIR}/*.h" )
+
+SET(FIND_SRCS /usr/bin/find "${SUBPROJECT_SOURCE_DIR}" -regex "\".*\\.[cm]*\"" -print)
+SET(FIND_HDRS /usr/bin/find "${SUBPROJECT_SOURCE_DIR}" -name "\"*.h\"" -print)
+
+execute_process(
+    COMMAND /usr/bin/find "${SUBPROJECT_SOURCE_DIR}" -regex "\".*\\.[cm]*\"" -print
+    OUTPUT_VARIABLE SUBPROJECT_SRCS)
+execute_process(
+    COMMAND /usr/bin/find "${SUBPROJECT_SOURCE_DIR}" -name "\"*.h\"" -print
+    OUTPUT_VARIABLE SUBPROJECT_HDRS)
+
+    message("${SUBPROJECT_SOURCE_DIR}")
+    
+    message("${FIND_SRCS}")
+    message("${SUBPROJECT_SRCS}")
+    
+    message("${FIND_HDRS}")
+    message("${SUBPROJECT_HDRS}")
 
 add_definitions(
     -DNDEBUG
-    -D'NULL_STR="\uFFFF"'
-    -DREST_API='"$rest_api"')
+    -D'NULL_STR="\\uFFFF"'
+    -DREST_API='"http://api.textmate.org"')
 
-set_target_properties(
-    ${SUBPROJECT_SRCS} PROPERTIES LINK_FLAGS
+SET(COMMON_LINK_FLAGS
     -m64 -mmacosx-version-min=10.9
     -fvisibility=hidden
     -Wl,-dead_strip -Wl,-dead_strip_dylibs
     -rpath @executable_path/../Frameworks)
+
+foreach(FLAG ${COMMON_LINK_FLAGS})
+
+    set_source_files_properties(
+        GLOB_RECURSE "./*.c"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES LINK_FLAGS ${FLAG})
+
+    set_source_files_properties(
+        GLOB_RECURSE "./*.m" 
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES LINK_FLAGS ${FLAG})
+
+    set_source_files_properties(
+        GLOB_RECURSE "./*.cc"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES LINK_FLAGS ${FLAG})
+
+    set_source_files_properties(
+        GLOB_RECURSE "./*.mm"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES LINK_FLAGS ${FLAG})
+
+endforeach()
 
 set(COMMON_OPTIONS
     -c -pipe -fPIC -gdwarf-2 -Os
@@ -76,29 +120,80 @@ set(COMMON_OPTIONS
     -Wno-parentheses -Wno-sign-compare
     -Wno-switch -fcolor-diagnostics)
 
-set_source_files_properties(
-    GLOB_RECURSE "./*.c" PROPERTIES COMPILE_OPTIONS
-    -fobjc-abi-version=3 -fobjc-arc -std=c99
-    ${COMMON_FLAGS})
+foreach(OPT ${COMMON_OPTIONS})
 
-set_source_files_properties(
-    GLOB_RECURSE "./*.m" PROPERTIES COMPILE_OPTIONS
-    -fobjc-abi-version=3 -fobjc-arc -std=c99 -ObjC
-    ${COMMON_FLAGS})
+    set_source_files_properties(
+        GLOB_RECURSE "./*.c"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES COMPILE_OPTIONS ${OPT})
 
-set_source_files_properties(
-    GLOB_RECURSE "./*.cpp" PROPERTIES COMPILE_OPTIONS
-    -std=c++1y -stdlib=libc++
-    ${COMMON_FLAGS})
+    set_source_files_properties(
+        GLOB_RECURSE "./*.m" 
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES COMPILE_OPTIONS ${OPT})
 
-set_source_files_properties(
-    GLOB_RECURSE "./*.mm" PROPERTIES COMPILE_OPTIONS
+    set_source_files_properties(
+        GLOB_RECURSE "./*.cc"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES COMPILE_OPTIONS ${OPT})
+
+    set_source_files_properties(
+        GLOB_RECURSE "./*.mm"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES COMPILE_OPTIONS ${OPT})
+    
+endforeach()
+
+SET(CC_OPTIONS
+    -fobjc-abi-version=3 -fobjc-arc -std=c99)
+
+SET(CXX_OPTIONS
+    -std=c++1y -stdlib=libc++)
+
+SET(OBJC_OPTIONS
+    -fobjc-abi-version=3 -fobjc-arc -std=c99 -ObjC)
+
+SET(OBJCXX_OPTIONS
     -fobjc-abi-version=3 -std=c++1y -stdlib=libc++ -ObjC++
-    -fobjc-link-runtime  -fobjc-arc -fobjc-call-cxx-cdtors
-    ${COMMON_FLAGS})
+    -fobjc-link-runtime  -fobjc-arc -fobjc-call-cxx-cdtors)
 
-ADD_LIBRARY(lib${SUBPROJECT_NAME} STATIC ${SUBPROJECT_SRCS})
-ADD_LIBRARY(${SUBPROJECT_NAME} SHARED ${SUBPROJECT_SRCS})
+foreach(OPT ${CC_OPTIONS})
+    set_source_files_properties(
+        GLOB_RECURSE "./*.c"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES COMPILE_OPTIONS ${OPT})
+endforeach()
+
+foreach(OPT ${CXX_OPTIONS})
+    set_source_files_properties(
+        GLOB_RECURSE "./*.cc"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES COMPILE_OPTIONS ${OPT})
+endforeach()
+
+foreach(OPT ${OBJC_OPTIONS})
+    set_source_files_properties(
+        GLOB_RECURSE "./*.m"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES COMPILE_OPTIONS ${OPT})
+endforeach()
+
+foreach(OPT ${OBJCXX_OPTIONS})
+    set_source_files_properties(
+        GLOB_RECURSE "./*.mm"
+        RELATIVE ${SUBPROJECT_SOURCE_DIR}
+        PROPERTIES COMPILE_OPTIONS ${OPT})
+endforeach()
+
+# set_source_files_properties(
+#     GLOB_RECURSE "./*.mm" PROPERTIES COMPILE_OPTIONS
+#     -fobjc-abi-version=3 -std=c++1y -stdlib=libc++ -ObjC++
+#     -fobjc-link-runtime  -fobjc-arc -fobjc-call-cxx-cdtors
+#     ${COMMON_FLAGS})
+
+
+ADD_LIBRARY(lib${SUBPROJECT_NAME} STATIC ${SUBPROJECT_SRCS} ${SUBPROJECT_HDRS})
+ADD_LIBRARY(${SUBPROJECT_NAME} SHARED ${SUBPROJECT_SRCS} ${SUBPROJECT_HDRS})
 
 set_target_properties(lib${SUBPROJECT_NAME}
     PROPERTIES LIBRARY_OUTPUT_NAME
