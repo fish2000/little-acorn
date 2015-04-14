@@ -1,4 +1,4 @@
-#include "../vendor/oniguruma.h"
+#include "vendor/oniguruma.h"
 
 __attribute__((constructor)) static void setup ()
 {
