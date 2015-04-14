@@ -36,15 +36,15 @@ def is_framework(library_name):
 
 def find_source(pth):
     if exists(join(pth, 'vendor')):
-        return gosub("""find %s/src %s/vendor -regex ".*\.[cm]*" -print""" % (pth, pth))[0].replace("\\n", "\n")
+        return gosub("""cd %s && find src vendor -regex ".*\.[cm]*" -print""" % pth)[0].replace("\\n", "\n")
     else:
-        return gosub("""find %s/src -regex ".*\.[cm]*" -print""" % pth)[0].replace("\\n", "\n")
+        return gosub("""cd %s && find src -regex ".*\.[cm]*" -print""" % pth)[0].replace("\\n", "\n")
 
 def find_headers(pth):
     if exists(join(pth, 'vendor')):
-        return gosub("""find %s/src %s/vendor -name "*.h" -print""" % (pth, pth))[0].replace("\\n", "\n")
+        return gosub("""cd %s && find src vendor -name "*.h" -print""" % pth)[0].replace("\\n", "\n")
     else:
-        return gosub("""find %s/src -name "*.h" -print""" % pth)[0].replace("\\n", "\n")
+        return gosub("""cd %s && find src -name "*.h" -print""" % pth)[0].replace("\\n", "\n")
 
 def atomic_write(content, target):
     t = NamedTemporaryFile(dir="/tmp", delete=False)
@@ -66,18 +66,18 @@ modules = {
                      libs=()),
     'cf':       dict(depends=('text',),
                      libs=('CoreFoundation', 'ApplicationServices')),
-    'crash':    dict(depends=(),
+    'crash':    dict(depends=('Onigmo',),
                      libs=()),
     'io':       dict(depends=('text', 'cf', 'regexp', 'crash'),
                      libs=('Carbon', 'Security')),
     'regexp':   dict(depends=('Onigmo', 'text', 'cf'),
                      libs=('iconv',)),
-    'text':     dict(depends=(),
+    'text':     dict(depends=('Onigmo',),
                      libs=('CoreFoundation',))
 }
 
 for modulename in modules.iterkeys():
-    modules[modulename]['path'] = realpath(join(dirname(wd), modulename))
+    modules[modulename]['path'] = join(dirname(wd), modulename)
 
 if __name__ == '__main__':
     # Read template sources

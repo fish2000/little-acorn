@@ -75,8 +75,8 @@ IF(DEFINED ${SUBPROJECT_SOURCE_DIR})
     
 ENDIF()
 
-SET(CC_OPTIONS
-    -std=c99)
+SET(C_OPTIONS
+    -std=c99 -Wno-incompatible-pointer-types -Wno-char-subscripts)
 
 SET(CXX_OPTIONS
     -std=c++1y -stdlib=libc++)
@@ -86,11 +86,11 @@ SET(OBJC_OPTIONS
 
 SET(OBJCXX_OPTIONS
     -fobjc-abi-version=3 -std=c++1y -stdlib=libc++
-    -fobjc-link-runtime  -fobjc-arc -fobjc-call-cxx-cdtors)
+              -fobjc-arc -fobjc-call-cxx-cdtors)
 
 IF(DEFINED ${SUBPROJECT_SOURCE_DIR})
     
-    foreach(OPT ${CC_OPTIONS})
+    foreach(OPT ${C_OPTIONS})
         set_source_files_properties(
             GLOB_RECURSE "./*.c"
             RELATIVE ${SUBPROJECT_SOURCE_DIR}
