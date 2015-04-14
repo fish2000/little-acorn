@@ -1,8 +1,5 @@
 # No rights reserved.
 
-find_package(PkgConfig)
-pkg_check_modules(CAPNP capnp)
-
 if(${CAPNP_FOUND})
   set(CAPNP_FIND_QUIETLY on)
 else()
