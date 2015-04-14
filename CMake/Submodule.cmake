@@ -8,8 +8,9 @@ GET_FILENAME_COMPONENT(
 SET(SUBPROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 PROJECT(${SUBPROJECT_NAME})
 
-SET(CMAKE_PREFIX_PATH
-    ${CMAKE_PREFIX_PATH}
+SET(CMAKE_MODULE_PATH
+    ${CMAKE_MODULE_PATH}
+    ${CMAKE_BINARY_DIR}/generated
     ${PARENT_DIR}/CMake)
 
 ## Include set_if_undefined() macro
@@ -18,6 +19,9 @@ if(NOT COMMAND set_if_undefined)
 endif()
 
 ## Viron variables
+SET(SUBPROJECT_DEPS ${VIRON_DEPS})
+SET(SUBPROJECT_SRCS ${VIRON_SRCS})
+SET(SUBPROJECT_HDRS ${VIRON_HDRS})
 SET(ALL_SUBPROJECTS ${VIRON_SUBPROJECTS})
 SET(SUBPROJECT_LIBS ${VIRON_LIBS} Boost)
 SET(SUBPROJECT_FRAMEWORKS ${VIRON_FRAMEWORKS})
@@ -39,23 +43,16 @@ SET(CMAKE_LIBRARY_PATH
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CAPNP capnp)
 
-foreach(L ${SUBPROJECT_LIBS})
-    find_package(${L} REQUIRED)
-endforeach()
+IF(DEFINED SUBPROJECT_LIBS)
+    foreach(L ${SUBPROJECT_LIBS})
+        find_package(${L} REQUIRED)
+    endforeach()
+ENDIF()
 
-# FIND_LIBRARY(CORE_SERVICES_FRAMEWORK CoreServices)
-# FIND_LIBRARY(CORE_FOUNDATION_FRAMEWORK CoreFoundation)
-# FIND_LIBRARY(APPLICATION_SERVICES_FRAMEWORK ApplicationServices)
-#
-# MARK_AS_ADVANCED(
-#     CORE_SERVICES_FRAMEWORK
-#     CORE_FOUNDATION_FRAMEWORK
-#     APPLICATION_SERVICES_FRAMEWORK)
-#
-# SET(FRAMEWORKS
-#     ${COCOA_LIBRARY}
-#     ${FOUNDATION_LIBRARY}
-#     ${COREFOUNDATION_LIBRARY})
+include(SubmoduleOptions)
+
+ADD_LIBRARY(lib${SUBPROJECT_NAME} STATIC ${SUBPROJECT_SRCS} ${SUBPROJECT_HDRS})
+ADD_LIBRARY(${SUBPROJECT_NAME} SHARED ${SUBPROJECT_SRCS} ${SUBPROJECT_HDRS})
 
 INCLUDE_DIRECTORIES(
     ${CMAKE_INCLUDE_PATH}
@@ -65,153 +62,10 @@ INCLUDE_DIRECTORIES(
     ${PARENT_DIR}/Shared/include
     ${SUBPROJECT_SOURCE_DIR}/src
     /usr/local/include)
+
 LINK_DIRECTORIES(
     ${CMAKE_LIBRARY_PATH}
     /usr/local/lib)
-
-# FILE(GLOB_RECURSE SUBPROJECT_SRCS
-#     RELATIVE ${SUBPROJECT_SOURCE_DIR}
-#     "${SUBPROJECT_SOURCE_DIR}/*.*" )
-# FILE(GLOB_RECURSE SUBPROJECT_HDRS
-#     RELATIVE ${SUBPROJECT_SOURCE_DIR}
-#     "${SUBPROJECT_SOURCE_DIR}/*.h" )
-
-SET(FIND_SRCS /usr/bin/find "${SUBPROJECT_SOURCE_DIR}" -regex "\".*\\.[cm]*\"" -print)
-SET(FIND_HDRS /usr/bin/find "${SUBPROJECT_SOURCE_DIR}" -name "\"*.h\"" -print)
-
-execute_process(
-    COMMAND /usr/bin/find "${SUBPROJECT_SOURCE_DIR}" -regex "\".*\\.[cm]*\"" -print
-    OUTPUT_VARIABLE SUBPROJECT_SRCS)
-execute_process(
-    COMMAND /usr/bin/find "${SUBPROJECT_SOURCE_DIR}" -name "\"*.h\"" -print
-    OUTPUT_VARIABLE SUBPROJECT_HDRS)
-
-    message("${SUBPROJECT_SOURCE_DIR}")
-    
-    message("${FIND_SRCS}")
-    message("${SUBPROJECT_SRCS}")
-    
-    message("${FIND_HDRS}")
-    message("${SUBPROJECT_HDRS}")
-
-add_definitions(
-    -DNDEBUG
-    -D'NULL_STR="\\uFFFF"'
-    -DREST_API='"http://api.textmate.org"')
-
-SET(COMMON_LINK_FLAGS
-    -m64 -mmacosx-version-min=10.9
-    -fvisibility=hidden
-    -Wl,-dead_strip -Wl,-dead_strip_dylibs
-    -rpath @executable_path/../Frameworks)
-
-foreach(FLAG ${COMMON_LINK_FLAGS})
-
-    set_source_files_properties(
-        GLOB_RECURSE "./*.c"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES LINK_FLAGS ${FLAG})
-
-    set_source_files_properties(
-        GLOB_RECURSE "./*.m" 
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES LINK_FLAGS ${FLAG})
-
-    set_source_files_properties(
-        GLOB_RECURSE "./*.cc"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES LINK_FLAGS ${FLAG})
-
-    set_source_files_properties(
-        GLOB_RECURSE "./*.mm"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES LINK_FLAGS ${FLAG})
-
-endforeach()
-
-set(COMMON_OPTIONS
-    -c -pipe -fPIC -gdwarf-2 -Os
-    -m64 -mmacosx-version-min=10.9
-    -funsigned-char -fcolor-diagnostics
-    -Wall -Wwrite-strings -Wformat
-    -Winit-self -Wmissing-include-dirs
-    -Wno-parentheses -Wno-sign-compare
-    -Wno-switch -fcolor-diagnostics)
-
-foreach(OPT ${COMMON_OPTIONS})
-
-    set_source_files_properties(
-        GLOB_RECURSE "./*.c"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES COMPILE_OPTIONS ${OPT})
-
-    set_source_files_properties(
-        GLOB_RECURSE "./*.m" 
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES COMPILE_OPTIONS ${OPT})
-
-    set_source_files_properties(
-        GLOB_RECURSE "./*.cc"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES COMPILE_OPTIONS ${OPT})
-
-    set_source_files_properties(
-        GLOB_RECURSE "./*.mm"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES COMPILE_OPTIONS ${OPT})
-    
-endforeach()
-
-SET(CC_OPTIONS
-    -fobjc-abi-version=3 -fobjc-arc -std=c99)
-
-SET(CXX_OPTIONS
-    -std=c++1y -stdlib=libc++)
-
-SET(OBJC_OPTIONS
-    -fobjc-abi-version=3 -fobjc-arc -std=c99 -ObjC)
-
-SET(OBJCXX_OPTIONS
-    -fobjc-abi-version=3 -std=c++1y -stdlib=libc++ -ObjC++
-    -fobjc-link-runtime  -fobjc-arc -fobjc-call-cxx-cdtors)
-
-foreach(OPT ${CC_OPTIONS})
-    set_source_files_properties(
-        GLOB_RECURSE "./*.c"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES COMPILE_OPTIONS ${OPT})
-endforeach()
-
-foreach(OPT ${CXX_OPTIONS})
-    set_source_files_properties(
-        GLOB_RECURSE "./*.cc"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES COMPILE_OPTIONS ${OPT})
-endforeach()
-
-foreach(OPT ${OBJC_OPTIONS})
-    set_source_files_properties(
-        GLOB_RECURSE "./*.m"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES COMPILE_OPTIONS ${OPT})
-endforeach()
-
-foreach(OPT ${OBJCXX_OPTIONS})
-    set_source_files_properties(
-        GLOB_RECURSE "./*.mm"
-        RELATIVE ${SUBPROJECT_SOURCE_DIR}
-        PROPERTIES COMPILE_OPTIONS ${OPT})
-endforeach()
-
-# set_source_files_properties(
-#     GLOB_RECURSE "./*.mm" PROPERTIES COMPILE_OPTIONS
-#     -fobjc-abi-version=3 -std=c++1y -stdlib=libc++ -ObjC++
-#     -fobjc-link-runtime  -fobjc-arc -fobjc-call-cxx-cdtors
-#     ${COMMON_FLAGS})
-
-
-ADD_LIBRARY(lib${SUBPROJECT_NAME} STATIC ${SUBPROJECT_SRCS} ${SUBPROJECT_HDRS})
-ADD_LIBRARY(${SUBPROJECT_NAME} SHARED ${SUBPROJECT_SRCS} ${SUBPROJECT_HDRS})
 
 set_target_properties(lib${SUBPROJECT_NAME}
     PROPERTIES LIBRARY_OUTPUT_NAME
@@ -228,6 +82,13 @@ set_target_properties(lib${SUBPROJECT_NAME}
 set_target_properties(${SUBPROJECT_NAME}
     PROPERTIES LIBRARY_OUTPUT_DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR})
+
+IF(DEFINED SUBPROJECT_DEPS)
+    foreach(D ${SUBPROJECT_DEPS})
+        add_dependencies(lib${SUBPROJECT_NAME} ${D})
+        add_dependencies(${SUBPROJECT_NAME} ${D})
+    endforeach()
+ENDIF()
 
 TARGET_LINK_LIBRARIES(lib${SUBPROJECT_NAME}
     ${SUBPROJECT_LIBS}

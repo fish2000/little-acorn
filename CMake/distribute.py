@@ -12,7 +12,7 @@ from viron.viron import viron
 def gosub(cmd, on_err=True, verbose=True):
     """ Run a shell command and return the output """
     if verbose:
-        print(white(cmd))
+        print("-- Executing `%s`" % white(cmd))
     shell = isinstance(cmd, basestring)
     proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=shell)
     out, err = proc.communicate()
@@ -34,12 +34,24 @@ def mkdir_p(pth):
 def is_framework(library_name):
     return str(library_name)[0].isupper()
 
+def find_source(pth):
+    if exists(join(pth, 'vendor')):
+        return gosub("""find %s/src %s/vendor -regex ".*\.[cm]*" -print""" % (pth, pth))[0].replace("\\n", "\n")
+    else:
+        return gosub("""find %s/src -regex ".*\.[cm]*" -print""" % pth)[0].replace("\\n", "\n")
+
+def find_headers(pth):
+    if exists(join(pth, 'vendor')):
+        return gosub("""find %s/src %s/vendor -name "*.h" -print""" % (pth, pth))[0].replace("\\n", "\n")
+    else:
+        return gosub("""find %s/src -name "*.h" -print""" % pth)[0].replace("\\n", "\n")
+
 def atomic_write(content, target):
-    t = NamedTemporaryFile(delete=False)
+    t = NamedTemporaryFile(dir="/tmp", delete=False)
     t.file.write(content)
     t.file.flush()
     t.close()
-    copy(t.name, realpath(target))
+    copy(t.name, target)
     t.unlink(t.name)
 
 wd = dirname(__file__)
@@ -52,14 +64,14 @@ findtargetdir = realpath(join(dirname(wd), 'build', 'generated'))
 modules = {
     'Onigmo':   dict(depends=(),
                      libs=()),
-    'cf':       dict(depends=('text'),
+    'cf':       dict(depends=('text',),
                      libs=('CoreFoundation', 'ApplicationServices')),
     'crash':    dict(depends=(),
                      libs=()),
     'io':       dict(depends=('text', 'cf', 'regexp', 'crash'),
                      libs=('Carbon', 'Security')),
     'regexp':   dict(depends=('Onigmo', 'text', 'cf'),
-                     libs=('iconv')),
+                     libs=('iconv',)),
     'text':     dict(depends=(),
                      libs=('CoreFoundation',))
 }
@@ -81,19 +93,30 @@ if __name__ == '__main__':
     subprojects = " ".join(modules.iterkeys())
     
     for modulename, m in modules.iteritems():
-        print(cyan("> Configuring %s" % modulename))
+        # print("")
+        print(cyan("-- Configuring submodule %s" % modulename))
         target = join(m['path'], targetname)
         
         # Get rid of existant file
         if exists(target):
             delete(target)
         
+        # Find module source and header files
+        source = find_source(m['path'])
+        headers = find_headers(m['path'])
+        
         # Set up {module}/CMakeLists.txt
-        libs = list(m['depends'])
+        libs = []
         frameworks = []
         for lib in m['libs']:
-            is_framework(lib) and frameworks.append(lib) or libs.append(lib)
+            if is_framework(lib):
+                frameworks.append(lib)
+            else:
+                libs.append(lib)
         cmakelists = viron(cmaketpl, swapdic=dict(
+            VIRON_DEPS=" ".join(m['depends']),
+            VIRON_SRCS=source,
+            VIRON_HDRS=headers,
             VIRON_SUBPROJECTS=subprojects,
             VIRON_FRAMEWORKS=" ".join(frameworks),
             VIRON_LIBS=" ".join(libs)),
@@ -101,7 +124,7 @@ if __name__ == '__main__':
         atomic_write(cmakelists, target)
         
         # Set up CMake/generated/Find{Module}.cmake
-        findtarget = join(dirname(wd), 'generated', 'Find%s.cmake' % modulename.capitalize())
+        findtarget = join(findtargetdir, 'Find%s.cmake' % modulename.capitalize())
         if exists(findtarget):
             delete(findtarget)
         findmodule = viron(findtpl, swapdic=dict(
